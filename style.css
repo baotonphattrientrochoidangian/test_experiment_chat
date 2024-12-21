@@ -1,0 +1,366 @@
+/* Base Styles */
+:root {
+    --light-bg: #ffffff;
+    --light-secondary-bg: #f0f0f0;
+    --light-border: #e0e0e0;
+    --light-text: #1a1a1a;
+    --dark-bg: #1a1a1a;
+    --dark-secondary-bg: #2d2d2d;
+    --dark-border: #404040;
+    --dark-text: #ffffff;
+    --primary-color: #0084ff;
+    --primary-hover: #0073e6;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    height: 100vh;
+    transition: background-color 0.3s ease;
+}
+
+/* Theme Styles */
+body.light-mode {
+    background-color: var(--light-bg);
+    color: var(--light-text);
+}
+
+body.dark-mode {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+}
+
+/* Container */
+.chat-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    padding: 0.5rem;
+    border-radius: 50%;
+    border: none;
+    background: var(--light-secondary-bg);
+    color: var(--light-text);
+    cursor: pointer;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .theme-toggle {
+    background: var(--dark-secondary-bg);
+    color: var(--dark-text);
+}
+
+/* Messages Area */
+.messages-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    padding-top: 2rem;
+    margin-bottom: 90px;
+}
+
+/* Message Container */
+.message-container {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.message-container.user {
+    flex-direction: row-reverse;
+}
+
+.message-typing-area {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Avatar */
+.avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    margin: 0 10px;
+    border: 2px solid var(--light-border);
+}
+
+.dark-mode .avatar {
+    border-color: var(--dark-border);
+}
+
+/* Messages */
+.message {
+    padding: 10px 15px;
+    border-radius: 20px;
+    font-size: 16px;
+    line-height: 1.4;
+    position: relative;
+}
+
+.message p {
+    margin: 0;
+}
+
+.user-message {
+    background: var(--primary-color);
+    color: white;
+    border-bottom-right-radius: 5px;
+    margin-left: auto;
+}
+
+.bot-message {
+    background: var(--light-secondary-bg);
+    color: var(--light-text);
+    border-bottom-left-radius: 5px;
+}
+
+.dark-mode .bot-message {
+    background: var(--dark-secondary-bg);
+    color: var(--dark-text);
+}
+
+/* Input Area */
+.input-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.input-area {
+    padding: 1rem;
+    border-top: 1px solid var(--light-border);
+    background: var(--light-secondary-bg);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}
+
+.dark-mode .input-area {
+    border-color: var(--dark-border);
+    background: var(--dark-secondary-bg);
+}
+
+/* Chat Form */
+.chat-form {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Input Wrapper */
+.input-wrapper {
+    flex: 1;
+    position: relative;
+    background: var(--light-bg);
+    border-radius: 24px;
+    border: 1px solid var(--light-border);
+}
+
+.dark-mode .input-wrapper {
+    background: var(--dark-bg);
+    border-color: var(--dark-border);
+}
+
+/* Textarea */
+textarea {
+    width: 100%;
+    padding: 1rem 3rem 1rem 1rem;
+    border: none;
+    border-radius: 24px;
+    resize: none;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1.5;
+    max-height: 150px;
+}
+
+textarea::placeholder {
+    color: #999;
+}
+
+/* Buttons */
+.action-btn,
+.emoji-btn,
+.send-btn {
+    padding: 0.5rem;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: inherit;
+}
+
+.emoji-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+}
+
+.send-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.send-btn:hover {
+    background: var(--primary-hover);
+}
+
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Typing Indicator */
+.typing {
+    background: var(--light-secondary-bg);
+    padding: 10px 15px;
+    border-radius: 20px;
+    border-bottom-left-radius: 5px;
+    color: var(--light-text);
+    font-size: 16px;
+}
+
+.dark-mode .typing {
+    background: var(--dark-secondary-bg);
+    color: var(--dark-text);
+}
+
+.typing-dots::after {
+    content: '...';
+    animation: typing 1s infinite;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes typing {
+    0% { content: '.'; }
+    33% { content: '..'; }
+    66% { content: '...'; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* Thêm CSS cho preview hình ảnh */
+.image-preview-container {
+    position: relative;
+    margin: 10px;
+    max-width: 200px;
+    max-height: 200px;
+}
+
+.image-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.remove-image-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    z-index: 10;
+}
+
+.remove-image-btn:hover {
+    background-color: rgba(255, 0, 0, 0.9);
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+/* Điều chỉnh style cho hình ảnh trong tin nhắn */
+.message-image {
+    max-width: 250px;
+    max-height: 250px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.user-message .message-image {
+    align-self: flex-end;
+}
+
+.bot-message .message-image {
+    align-self: flex-start;
+}
+
+.message {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+@media screen and (max-width: 600px) {
+    .avatar {
+        display: none;
+    }
+}
