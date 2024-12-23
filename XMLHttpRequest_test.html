@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Content Fetcher and Processor</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .pre-scrollable {
+            max-height: 400px;
+            overflow-y: scroll;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-4 mb-4">HTML Content Fetcher and Processor</h1>
+        <div class="input-group mb-3">
+            <input type="url" class="form-control" id="urlInput" placeholder="Enter website URL (e.g., https://example.com)" required>
+            <div class="input-group-append">
+                <button class="btn btn-primary" type="button" onclick="fetchAndProcessHTML()" id="fetchButton">
+                    Fetch and Process
+                </button>
+            </div>
+        </div>
+        <div id="loading" class="loading text-center mb-3" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+        <div id="error" class="alert alert-danger" style="display: none;"></div>
+        <pre id="htmlOutput" class="pre-scrollable"></pre>
+        <button id="copyButton" class="btn btn-success mt-2" style="display: none;" onclick="copyToClipboard()">Copy to Clipboard</button>
+    </div>
+
+    <script>
+        async function fetchAndProcessHTML() {
+            const urlInput = document.getElementById('urlInput');
+            const htmlOutput = document.getElementById('htmlOutput');
+            const errorDiv = document.getElementById('error');
+            const loadingDiv = document.getElementById('loading');
+            const copyButton = document.getElementById('copyButton');
+            const fetchButton = document.getElementById('fetchButton');
+
+            // Reset previous state
+            errorDiv.style.display = 'none';
+            htmlOutput.textContent = '';
+            copyButton.style.display = 'none';
+
+            // Validate URL
+            let url;
+            try {
+                url = new URL(urlInput.value);
+            } catch (e) {
+                errorDiv.textContent = 'Please enter a valid URL';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Show loading state
+            loadingDiv.style.display = 'block';
+            fetchButton.disabled = true;
+
+            try {
+                // Use a CORS proxy to fetch the HTML
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+
+                const response = await fetch(proxyUrl);
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch the webpage');
+                }
+
+                const html = await response.text();
+                const processedHTML = processHTMLContent(html);
+                htmlOutput.textContent = processedHTML;
+                copyButton.style.display = 'block';
+
+            } catch (error) {
+                errorDiv.textContent = `Error: ${error.message}. Try another URL or check your internet connection.`;
+                errorDiv.style.display = 'block';
+            } finally {
+                loadingDiv.style.display = 'none';
+                fetchButton.disabled = false;
+            }
+        }
+
+        function processHTMLContent(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Loại bỏ header và script
+            const headers = doc.querySelectorAll('header');
+            headers.forEach(header => header.remove());
+            const scripts = doc.querySelectorAll('script');
+            scripts.forEach(script => script.remove());
+
+            const body = doc.body;
+            const ketQua = []; // Sử dụng array để join sau
+
+            function processNode(node) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    ketQua.push(node.textContent);
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (node.tagName.toLowerCase() === 'p') {
+                        processChildren(node);
+                        ketQua.push("\n");
+                    } else if (node.tagName.toLowerCase() === 'span') {
+                        processChildren(node);
+                        ketQua.push(" ");
+                    } else {
+                        processChildren(node);
+                    }
+                }
+            }
+
+            function processChildren(element) {
+                element.childNodes.forEach(child => {
+                    processNode(child);
+                });
+            }
+
+            processChildren(body);
+
+            // Loại bỏ khoảng trắng đầu cuối mỗi dòng và các dòng trống bằng regex
+            return ketQua.join('').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+        }
+
+        function copyToClipboard() {
+            const htmlOutput = document.getElementById('htmlOutput');
+            const copyButton = document.getElementById('copyButton');
+
+            navigator.clipboard.writeText(htmlOutput.textContent)
+                .then(() => {
+                    const originalText = copyButton.textContent;
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyButton.textContent = originalText;
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Could not copy text: ', err);
+                    // Fallback cho trình duyệt cũ
+                    const textarea = document.createElement('textarea');
+                    textarea.value = htmlOutput.textContent;
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+                    try {
+                        document.execCommand('copy');
+                        const originalText = copyButton.textContent;
+                        copyButton.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyButton.textContent = originalText;
+                        }, 2000);
+                    } catch (copyErr) {
+                        console.error('Fallback copy failed: ', copyErr);
+                        copyButton.textContent = 'Copy Failed';
+                    } finally {
+                        document.body.removeChild(textarea);
+                    }
+                });
+        }
+    </script>
+</body>
+</html>

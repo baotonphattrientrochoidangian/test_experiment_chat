@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Lọc và Xử Lý Nội Dung HTML</title>
+<style>
+  body {
+    font-family: sans-serif;
+  }
+  textarea {
+    width: 100%;
+    height: 300px;
+    margin-bottom: 10px;
+    padding: 10px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    resize: vertical;
+  }
+  button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  #ketQuaLoc {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f0f8ff;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Lọc và Xử Lý Nội Dung HTML</h1>
+
+  <label for="inputHTML">Nhập mã HTML của trang web:</label><br>
+  <textarea id="inputHTML" placeholder="Dán mã HTML của trang web vào đây"></textarea><br>
+
+  <button onclick="locNoiDungVaXuLyThe()">Lọc và Xử Lý Thẻ</button>
+
+  <h2>Nội dung đã lọc và xử lý:</h2>
+  <div id="ketQuaLoc">
+    <!-- Nội dung đã lọc sẽ hiển thị ở đây -->
+  </div>
+
+  <script>
+    function locNoiDungVaXuLyThe() {
+      const htmlInput = document.getElementById('inputHTML').value;
+      const ketQuaLocDiv = document.getElementById('ketQuaLoc');
+      ketQuaLocDiv.textContent = "Đang lọc và xử lý nội dung...";
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlInput, 'text/html');
+
+      // Loại bỏ header và script
+      const headers = doc.querySelectorAll('header');
+      headers.forEach(header => header.remove());
+      const scripts = doc.querySelectorAll('script');
+      scripts.forEach(script => script.remove());
+
+      const body = doc.body;
+      let ketQua = "";
+
+      function processNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          ketQua += node.textContent;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.tagName.toLowerCase() === 'p') {
+            processChildren(node);
+            ketQua += "\n";
+          } else if (node.tagName.toLowerCase() === 'span') {
+            processChildren(node);
+            ketQua += " ";
+          } else {
+            processChildren(node);
+          }
+        }
+      }
+
+      function processChildren(element) {
+        element.childNodes.forEach(child => {
+          processNode(child);
+        });
+      }
+
+      processChildren(body);
+
+      // Loại bỏ khoảng trắng đầu cuối mỗi dòng và các dòng trống
+      const cacDong = ketQua.split('\n').map(dong => dong.trim()).filter(dong => dong.length > 0);
+      ketQuaLocDiv.textContent = cacDong.join('\n');
+    }
+  </script>
+
+</body>
+</html>

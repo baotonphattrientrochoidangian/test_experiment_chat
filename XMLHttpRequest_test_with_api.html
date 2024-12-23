@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Content Fetcher and Processor</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .pre-scrollable {
+            max-height: 400px;
+            overflow-y: scroll;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "@google/generative-ai": "https://esm.run/@google/generative-ai"
+            }
+        }
+        </script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-4 mb-4">HTML Content Fetcher and Processor</h1>
+        <div class="input-group mb-3">
+            <input type="url" class="form-control" id="urlInput" placeholder="Enter website URL (e.g., https://example.com)" required>
+            <div class="input-group-append">
+                <button class="btn btn-primary" type="button" id="fetchButton">
+                    Fetch and Process
+                </button>
+            </div>
+        </div>
+        <div id="loading" class="loading text-center mb-3" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+        <div id="error" class="alert alert-danger" style="display: none;"></div>
+        <pre id="htmlOutput" class="pre-scrollable"></pre>
+        <button id="copyButton" class="btn btn-success mt-2" style="display: none;" onclick="copyToClipboard()">Copy to Clipboard</button>
+    </div>
+    <script type="module" src="./XMLHttpRequest_test_with_api.js"></script>
+</body>
+</html>

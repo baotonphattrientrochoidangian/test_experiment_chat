@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI,HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = "AIzaSyA6nRUwDozn7hYsRbqGXAtWwm1QU09Umwk";
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -12,45 +12,184 @@ const model = genAI.getGenerativeModel({
 # Character
 Bạn là một AI chuyên giới thiệu và hướng dẫn về Trò chơi dân gian Việt Nam.  Bạn có khả năng giải thích luật chơi, nguồn gốc, và ý nghĩa văn hóa của các trò chơi một cách rõ ràng và dễ hiểu. Bạn cũng có thể gợi ý những trò chơi phù hợp với độ tuổi và sở thích của người dùng.
 
-## Skills
-### Skill 1: Giới thiệu trò chơi dân gian
+### Giới thiệu trò chơi dân gian
 - Mô tả chi tiết luật chơi, cách chơi của trò chơi.
 - Giải thích nguồn gốc và ý nghĩa văn hóa của trò chơi.
-- Cung cấp hình ảnh hoặc video minh họa (nếu có).
 - Đánh giá mức độ phổ biến và sự lan truyền của trò chơi.
 
-### Skill 2: Hướng dẫn cách chơi
+### Hướng dẫn cách chơi
 - Cung cấp hướng dẫn từng bước một cách rõ ràng và dễ hiểu.
 - Sử dụng ngôn ngữ đơn giản, dễ tiếp cận với mọi đối tượng.
-- Gợi ý các biến thể hoặc cách chơi khác nhau của trò chơi (nếu có).
+- Đưa ra bài đồng dao của trò chơi (nếu có).
 
-### Skill 3: Gợi ý trò chơi phù hợp
+### Gợi ý trò chơi phù hợp
 - Xác định độ tuổi và sở thích của người dùng.
 - Đề xuất các trò chơi dân gian phù hợp với độ tuổi và sở thích đó.
 - Giải thích lý do tại sao các trò chơi đó phù hợp.
 
-## Constraints:
+## Lưu ý:
+- Đưa ra bài đồng dao của trò chơi (nhớ xuống dòng cho từng câu trong bài đồng dao) (nếu có, nếu không thì bỏ qua, đừng nói \"Trò chơi này không có bài đồng giao nên tôi sẽ không đề cập\").
+- Không trả lời lười biếng kiểu như là "như đã nêu ở trên".
 - Chỉ tập trung vào các trò chơi dân gian Việt Nam.
 - Sử dụng ngôn ngữ Việt Nam chính xác và rõ ràng.
 - Luôn luôn kết hợp câu trả lời với emoji để tăng sức truyền đạt.
 - Tránh sử dụng ngôn ngữ khó hiểu hoặc chuyên ngành.
 - Cung cấp thông tin chính xác và đáng tin cậy.
-- Sử dụng markdown để trả lời câu hỏi.
+- Sử dụng markdown để trả lời câu hỏi (Không sử dụng markdown bảng, code, text-box).
 `,
 });
 
 const generationConfig = {
-    temperature: 0.8,
+    temperature: 0.5,
     topP: 0.9,
-    topK: 10,
+    topK: 1,
     maxOutputTokens: 8192,
 };
+
+// --- Start of fast_check.js logic ---
+const fastCheckModel = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash-8b",
+    systemInstruction: 'Trả lời "true" nếu cần tìm kiếm về trò chơi dân gian. Trả lời "false" nếu đơn giản.'
+});
+
+const checkConfig = {temperature: 0.3, topP: 0.1, topK: 1, responseMimeType: "text/plain"};
+
+async function check(question) {
+    console.log("Fast Check API Request:", { question });
+    const chat = await fastCheckModel.startChat({ generationConfig: { ...checkConfig, maxOutputTokens: 5 } });
+    const response = (await chat.sendMessage(`Câu lệnh này có cần sử dụng công cụ tìm kiếm không: ${question}`)).response;
+    console.log("Fast Check API Response:", response);
+    const needSearch = response.text().trim() === "true";
+
+    if (!needSearch) return null;
+
+    const searchChat = await fastCheckModel.startChat({ generationConfig: { ...checkConfig, maxOutputTokens: 50 } });
+    console.log("Fast Check Search Keyword API Request:", { question });
+    const searchResponse = (await searchChat.sendMessage(`Hãy tìm từ khóa đề tìm kiếm về vấn đề này: ${question}`)).response;
+    console.log("Fast Check Search Keyword API Response:", searchResponse);
+
+    return searchResponse.text();
+}
+// --- End of fast_check.js logic ---
+
+// --- Start of search_google_raw.html logic (adapted) ---
+async function getGoogleResults(searchQuery) {
+    try {
+        const encodedQuery = encodeURIComponent(searchQuery);
+        const googleUrl = `https://www.google.com/search?q=${encodedQuery}&num=5`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(googleUrl)}`;
+        
+        console.log("Google Search API Request:", { googleUrl, proxyUrl });
+        const response = await fetch(proxyUrl);
+        const html = await response.text();
+         console.log("Google Search API Response:", { status: response.status });
+
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const results = [];
+        
+        doc.querySelectorAll('a').forEach(link => {
+            if (results.length >= 5) return;
+
+            const href = link.getAttribute('href');
+            if (href?.startsWith('/url?q=')) {
+                let actualUrl = decodeURIComponent(href.substring(7));
+                const endIndex = actualUrl.indexOf('&');
+                if (endIndex !== -1) {
+                    actualUrl = actualUrl.substring(0, endIndex);
+                }
+                
+                if (actualUrl.startsWith('http') && 
+                    !actualUrl.includes('facebook.com') && 
+                    !actualUrl.includes('youtube.com') && 
+                    !actualUrl.includes('instagram.com') && 
+                    !actualUrl.includes('maps.google.com')) {
+                    results.push({
+                        title: link.textContent.trim(),
+                        url: actualUrl
+                    });
+                }
+            }
+        });
+        
+        return results;
+    } catch (error) {
+        console.error('Error fetching Google results:', error);
+        return [];
+    }
+}
+
+function processHTMLContent(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    doc.querySelectorAll('header, script').forEach(el => el.remove());
+
+    const processNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const childContent = Array.from(node.childNodes)
+                .map(child => processNode(child))
+                .join('');
+            return node.tagName.toLowerCase() === 'p' ? childContent + '\n' :
+                   node.tagName.toLowerCase() === 'span' ? childContent + ' ' :
+                   childContent;
+        }
+        return '';
+    };
+
+    return processNode(doc.body)
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n');
+}
+
+async function fetchAndProcessURL(url) {
+    try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+          console.log("URL Fetch API Request:", { url, proxyUrl });
+        const response = await fetch(proxyUrl);
+         console.log("URL Fetch API Response:", { status: response.status });
+
+        if (!response.ok) return null;
+        
+        const html = await response.text();
+        return processHTMLContent(html);
+    } catch (error) {
+        console.error(`Error processing ${url}:`, error);
+        return null;
+    }
+}
+
+async function performSearch(query) {
+    try {
+        const searchResults = await getGoogleResults(query);
+        let combinedContent = '';
+
+        for (const [index, result] of searchResults.entries()) {
+            const content = await fetchAndProcessURL(result.url);
+            if (content) {
+                combinedContent += `# Trang ${index + 1}: [${result.title}](${result.url})\n${content}\n\n---\n\n`;
+            }
+        }
+        return combinedContent.trim() === "" ? null : combinedContent;
+
+    } catch (error) {
+        console.error("Search Error: ", error);
+        return null;
+    }
+}
+// --- End of search_google_raw.html logic ---
+
 
 async function initChat() {
     chatSession = model.startChat({
         generationConfig,
         history: chatHistory,
     });
+     console.log("Chat Session Initialized:", chatSession);
     return chatSession;
 }
 
@@ -94,16 +233,17 @@ function addMessage(content, isUser = false, imageBase64 = null) {
     return textElement; // Return the text element for streaming updates
 }
 
+
 async function processImageAndText(message, imageBase64 = null) {
-    try {
+   try {
         if (!chatSession) {
             await initChat();
         }
-        
+
         // Add user message
         addMessage(message, true, imageBase64);
         
-        // Add typing indicator
+        // Add typing indicator (before anything else)
         const typingContainer = document.createElement('div');
         typingContainer.className = 'message-container'
         typingContainer.className = 'message-typing-area';
@@ -119,33 +259,50 @@ async function processImageAndText(message, imageBase64 = null) {
         typingContainer.appendChild(typingDiv);
         
         document.getElementById('messages').appendChild(typingContainer);
+         
+        // Create a preliminary bot message container (to show a message before API response)
+        const botMessageContainer = document.createElement('div');
+        botMessageContainer.className = 'message-container';
         
-        // Create bot message container
-        const messageContainer = document.createElement('div');
-        messageContainer.className = 'message-container';
-        messageContainer.style.display = 'none'; // Hide initially
+        const botAvatar = document.createElement('img');
+        botAvatar.src = 'https://api.dicebear.com/7.x/bottts/svg?seed=gemini';
+        botAvatar.className = 'avatar';
+        botMessageContainer.appendChild(botAvatar);
         
-        const avatar = document.createElement('img');
-        avatar.src = 'https://api.dicebear.com/7.x/bottts/svg?seed=gemini';
-        avatar.className = 'avatar';
-        messageContainer.appendChild(avatar);
+        const botMessageDiv = document.createElement('div');
+        botMessageDiv.className = 'message bot-message';
+         
+        const botTextElement = document.createElement('div');
+        botTextElement.className = 'message-text';
+        botTextElement.innerHTML = 'Đang suy nghĩ... 🤔';
+        botMessageDiv.appendChild(botTextElement);
         
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message bot-message';
-        
-        const textElement = document.createElement('div');
-        textElement.className = 'message-text';
-        messageDiv.appendChild(textElement);
-        
-        messageContainer.appendChild(messageDiv);
-        document.getElementById('messages').appendChild(messageContainer);
+        botMessageContainer.appendChild(botMessageDiv);
+        document.getElementById('messages').appendChild(botMessageContainer);
+         
+        // Now we are going to do everything else
+         // Perform check using fast_check.js logic
+         const searchKeywords = await check(message);
+         let searchResults = null;
+          if(searchKeywords) {
+             searchResults = await performSearch(searchKeywords);
+          }
+
+          // Add search results if available to prompt
+        let prompt = message;
+
+        if (searchResults) {
+            prompt = `Yêu cầu của người dùng: ${message}\n\nĐây là thông tin tìm kiếm web thu thập được:\n${searchResults}`;
+        }
 
         let result;
         let responseText = '';
         
+        console.log("Gemini API Request:", { prompt, imageBase64: !!imageBase64 });
+
         if (imageBase64) {
             result = await model.generateContentStream([
-                message || "Tell me about this image (in Vietnamese)",
+                prompt || "Tell me about this image (in Vietnamese)",
                 {
                     inlineData: {
                         data: imageBase64,
@@ -154,27 +311,34 @@ async function processImageAndText(message, imageBase64 = null) {
                 }
             ]);
         } else {
-            result = await chatSession.sendMessageStream(message);
+            result = await chatSession.sendMessageStream(prompt);
         }
+        console.log("Gemini API Response (Stream):", result);
 
-        // Remove typing indicator and show message container
+        // Remove typing indicator
         typingContainer.remove();
-        messageContainer.style.display = '';
+         
+         // Clear preliminary message (use timeout to allow for visual update)
+         setTimeout(() => {
+            botTextElement.innerHTML = '';
+          }, 50)
 
         // Process the stream
-        for await (const chunk of result.stream) {
+         for await (const chunk of result.stream) {
             const chunkText = chunk.text();
+             console.log("Gemini API Response Chunk:", { chunkText });
             responseText += chunkText;
-            textElement.innerHTML = marked.parse(responseText);
+            botTextElement.innerHTML = marked.parse(responseText);
             document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
         }
+
 
         // Update chat history
         chatHistory.push({
             role: 'user',
             parts: [{ text: message }]
         });
-        
+
         if (imageBase64) {
             chatHistory.push({
                 role: 'user',
@@ -194,6 +358,7 @@ async function processImageAndText(message, imageBase64 = null) {
             role: 'model',
             parts: [{ text: responseText }]
         });
+
 
         // Reinitialize chat with updated history
         await initChat();
@@ -215,6 +380,7 @@ async function processImageAndText(message, imageBase64 = null) {
         addMessage('Xin lỗi, đã có lỗi xảy ra khi xử lý tin nhắn của bạn.', false);
     }
 }
+
 
 // Event Listeners
 const uploadBtn = document.getElementById('uploadBtn');

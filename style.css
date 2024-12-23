@@ -97,6 +97,22 @@ body.dark-mode {
     animation: fadeIn 0.3s ease;
 }
 
+code {
+    display: block;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    width: fit-content;
+    margin: 0 auto;
+    padding: 8px;
+    background-color: var(--light-secondary-bg);
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.dark-mode code {
+    background-color: var(--dark-secondary-bg);
+}
+
 /* Avatar */
 .avatar {
     width: 35px;
@@ -114,8 +130,8 @@ body.dark-mode {
 .message {
     padding: 10px 15px;
     border-radius: 20px;
-    font-size: 16px;
-    line-height: 1.4;
+    font-size: 17px;
+    line-height: 1.6;
     position: relative;
 }
 

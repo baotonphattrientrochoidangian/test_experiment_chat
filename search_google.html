@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search and Process Content</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script type="importmap">
+    {
+        "imports": {
+            "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        }
+    }
+    </script>
+    <style>
+        .pre-scrollable {
+            max-height: 400px;
+            overflow-y: scroll;
+        }
+        .loading {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" id="searchInput" placeholder="Nhập từ khóa tìm kiếm...">
+            <div class="input-group-append">
+                <button class="btn btn-primary" onclick="startSearch()">Tìm kiếm</button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center mb-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+
+        <div id="error" class="alert alert-danger" style="display: none;"></div>
+        <pre id="contentOutput" class="pre-scrollable mt-3"></pre>
+        <button id="copyButton" class="btn btn-success mt-2" style="display: none;">Copy to Clipboard</button>
+    </div>
+
+    <script type="module">
+        import { GoogleGenerativeAI } from '@google/generative-ai';
+
+        window.processWithGemini = async function(content) {
+            try {
+                const genAI = new GoogleGenerativeAI("AIzaSyA6nRUwDozn7hYsRbqGXAtWwm1QU09Umwk");
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                const chatSession = model.startChat({
+                    generationConfig: {
+                        temperature: 0.8,
+                        topP: 0.9,
+                        topK: 10,
+                        maxOutputTokens: 8192,
+                    }
+                });
+                const result = await chatSession.sendMessage(content);
+                return result.response.text();
+            } catch (error) {
+                console.error('Error processing content:', error);
+                return 'Error processing content';
+            }
+        }
+    </script>
+
+    <script>
+        async function getGoogleResults(searchQuery) {
+            try {
+                const encodedQuery = encodeURIComponent(searchQuery);
+                const googleUrl = `https://www.google.com/search?q=${encodedQuery}&num=5`;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(googleUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                const html = await response.text();
+                
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const results = [];
+                
+                doc.querySelectorAll('a').forEach(link => {
+                    if (results.length >= 5) return;
+
+                    const href = link.getAttribute('href');
+                    if (href?.startsWith('/url?q=')) {
+                        let actualUrl = decodeURIComponent(href.substring(7));
+                        const endIndex = actualUrl.indexOf('&');
+                        if (endIndex !== -1) {
+                            actualUrl = actualUrl.substring(0, endIndex);
+                        }
+                        
+                        if (actualUrl.startsWith('http') && 
+                            !actualUrl.includes('facebook.com') && 
+                            !actualUrl.includes('youtube.com') && 
+                            !actualUrl.includes('instagram.com') && 
+                            !actualUrl.includes('maps.google.com')) {
+                            results.push({
+                                title: link.textContent.trim(),
+                                url: actualUrl
+                            });
+                        }
+                    }
+                });
+                
+                return results;
+            } catch (error) {
+                console.error('Error fetching Google results:', error);
+                return [];
+            }
+        }
+
+        function processHTMLContent(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            doc.querySelectorAll('header, script').forEach(el => el.remove());
+
+            const processNode = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return node.textContent;
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const childContent = Array.from(node.childNodes)
+                        .map(child => processNode(child))
+                        .join('');
+                    return node.tagName.toLowerCase() === 'p' ? childContent + '\n' :
+                           node.tagName.toLowerCase() === 'span' ? childContent + ' ' :
+                           childContent;
+                }
+                return '';
+            };
+
+            return processNode(doc.body)
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .join('\n');
+        }
+
+        async function fetchAndProcessURL(url) {
+            try {
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                if (!response.ok) return null;
+                
+                const html = await response.text();
+                return processHTMLContent(html);
+            } catch (error) {
+                console.error(`Error processing ${url}:`, error);
+                return null;
+            }
+        }
+
+        async function startSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const query = searchInput.value.trim();
+            
+            if (!query) {
+                alert('Vui lòng nhập từ khóa tìm kiếm!');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('contentOutput').textContent = '';
+            document.getElementById('copyButton').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+
+            try {
+                const searchResults = await getGoogleResults(query);
+                let combinedContent = "Chọn lọc và định dạng markdown các nội dung trong từng trang web sau, chỉ lấy nội dung của phần nội dung chính, đầy đủ:\n\n";
+
+                for (const [index, result] of searchResults.entries()) {
+                    const content = await fetchAndProcessURL(result.url);
+                    if (content) {
+                        combinedContent += `# Trang ${index + 1}: [${result.title}](${result.url})\n\`\`\`\n${content}\n\`\`\`\n\n`;
+                    }
+                }
+
+                const processedContent = await window.processWithGemini(combinedContent);
+                document.getElementById('contentOutput').textContent = processedContent;
+                document.getElementById('copyButton').style.display = 'block';
+            } catch (error) {
+                document.getElementById('error').textContent = 'Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại sau!';
+                document.getElementById('error').style.display = 'block';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function copyToClipboard() {
+            const content = document.getElementById('contentOutput').textContent;
+            navigator.clipboard.writeText(content)
+                .then(() => {
+                    const copyButton = document.getElementById('copyButton');
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => copyButton.textContent = 'Copy to Clipboard', 2000);
+                })
+                .catch(error => {
+                    console.error('Copy failed:', error);
+                    alert('Copy failed. Please try again.');
+                });
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                startSearch();
+            }
+        });
+
+        document.getElementById('copyButton').addEventListener('click', copyToClipboard);
+
+        window.startSearch = startSearch;
+        window.copyToClipboard = copyToClipboard;
+    </script>
+</body>
+</html>
