@@ -40,7 +40,7 @@ Bạn là một AI chuyên giới thiệu và hướng dẫn về Trò chơi dâ
 });
 
 const generationConfig = {
-    temperature: 0.5,
+    temperature: 0.8,
     topP: 0.9,
     topK: 1,
     maxOutputTokens: 8192,
@@ -72,25 +72,23 @@ async function check(question) {
 }
 // --- End of fast_check.js logic ---
 
-// --- Start of search_google_raw.html logic (adapted) ---
 async function getGoogleResults(searchQuery) {
     try {
         const encodedQuery = encodeURIComponent(searchQuery);
-        const googleUrl = `https://www.google.com/search?q=${encodedQuery}&num=5`;
+        const googleUrl = `https://www.google.com/search?q=${encodedQuery}&num=3`;
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(googleUrl)}`;
         
         console.log("Google Search API Request:", { googleUrl, proxyUrl });
         const response = await fetch(proxyUrl);
         const html = await response.text();
-         console.log("Google Search API Response:", { status: response.status });
+        console.log("Google Search API Response:", { status: response.status });
 
-        
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const results = [];
         
         doc.querySelectorAll('a').forEach(link => {
-            if (results.length >= 5) return;
+            if (results.length >= 3) return;
 
             const href = link.getAttribute('href');
             if (href?.startsWith('/url?q=')) {
@@ -149,10 +147,17 @@ function processHTMLContent(html) {
 async function fetchAndProcessURL(url) {
     try {
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-          console.log("URL Fetch API Request:", { url, proxyUrl });
-        const response = await fetch(proxyUrl);
-         console.log("URL Fetch API Response:", { status: response.status });
-
+        console.log("URL Fetch API Request:", { url, proxyUrl });
+        
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000); // 10 second timeout
+        
+        const response = await fetch(proxyUrl, { 
+            signal: controller.signal 
+        });
+        
+        clearTimeout(timeout);
+        
         if (!response.ok) return null;
         
         const html = await response.text();
@@ -167,13 +172,23 @@ async function performSearch(query) {
     try {
         const searchResults = await getGoogleResults(query);
         let combinedContent = '';
+        let successfulFetches = 0;
 
         for (const [index, result] of searchResults.entries()) {
-            const content = await fetchAndProcessURL(result.url);
-            if (content) {
-                combinedContent += `# Trang ${index + 1}: [${result.title}](${result.url})\n${content}\n\n---\n\n`;
+            if (successfulFetches >= 2) break; // Stop after 2 successful fetches
+
+            try {
+                const content = await fetchAndProcessURL(result.url);
+                if (content) {
+                    combinedContent += `# Trang ${successfulFetches + 1}: [${result.title}](${result.url})\n${content}\n\n---\n\n`;
+                    successfulFetches++;
+                }
+            } catch (error) {
+                console.error(`Error processing ${result.url}:`, error);
+                continue; // Skip to next URL if current one fails
             }
         }
+        
         return combinedContent.trim() === "" ? null : combinedContent;
 
     } catch (error) {
@@ -181,7 +196,6 @@ async function performSearch(query) {
         return null;
     }
 }
-// --- End of search_google_raw.html logic ---
 
 
 async function initChat() {

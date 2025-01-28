@@ -1,4 +1,4 @@
-// Setup
+// Setup variable
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
 const fileManager = new GoogleAIFileManager("AIzaSyA6nRUwDozn7hYsRbqGXAtWwm1QU09Umwk");
